@@ -1,0 +1,241 @@
+[
+ {
+  "kind": "tick",
+  "t": 0.85,
+  "film_t": 0.85,
+  "letter": "k"
+ },
+ {
+  "kind": "tick",
+  "t": 1.3,
+  "film_t": 1.3,
+  "letter": "a"
+ },
+ {
+  "kind": "tick",
+  "t": 1.75,
+  "film_t": 1.75,
+  "letter": "r"
+ },
+ {
+  "kind": "tick",
+  "t": 2.2,
+  "film_t": 2.2,
+  "letter": "a"
+ },
+ {
+  "kind": "tick",
+  "t": 2.65,
+  "film_t": 2.65,
+  "letter": "i"
+ },
+ {
+  "kind": "rewind",
+  "t": 3.8,
+  "film_t": 3.0,
+  "letter": "i"
+ },
+ {
+  "kind": "rewind",
+  "t": 3.98,
+  "film_t": 3.18,
+  "letter": "a"
+ },
+ {
+  "kind": "rewind",
+  "t": 4.16,
+  "film_t": 3.36,
+  "letter": "r"
+ },
+ {
+  "kind": "downbeat",
+  "t": 7.1,
+  "film_t": 5.5
+ },
+ {
+  "kind": "downbeat",
+  "t": 11.6,
+  "film_t": 9.0
+ },
+ {
+  "kind": "head",
+  "t": 11.6,
+  "film_t": 9.0,
+  "head": 1,
+  "max_weight": 0.36
+ },
+ {
+  "kind": "head",
+  "t": 13.1,
+  "film_t": 10.1,
+  "head": 2,
+  "max_weight": 0.515
+ },
+ {
+  "kind": "head",
+  "t": 14.6,
+  "film_t": 11.2,
+  "head": 3,
+  "max_weight": 0.979
+ },
+ {
+  "kind": "head",
+  "t": 16.1,
+  "film_t": 12.3,
+  "head": 4,
+  "max_weight": 0.611
+ },
+ {
+  "kind": "downbeat",
+  "t": 17.9,
+  "film_t": 13.5
+ },
+ {
+  "kind": "relu",
+  "t": 18.9,
+  "film_t": 14.5,
+  "active": 7
+ },
+ {
+  "kind": "downbeat",
+  "t": 21.4,
+  "film_t": 16.0
+ },
+ {
+  "kind": "strike",
+  "t": 26.0,
+  "film_t": 19.6,
+  "letter": "r",
+  "p": 0.3727
+ },
+ {
+  "kind": "downbeat",
+  "t": 28.4,
+  "film_t": 20.5
+ },
+ {
+  "kind": "name",
+  "t": 28.6,
+  "film_t": 20.7,
+  "name": "kamon"
+ },
+ {
+  "kind": "name",
+  "t": 28.64,
+  "film_t": 20.74,
+  "name": "ann"
+ },
+ {
+  "kind": "name",
+  "t": 28.68,
+  "film_t": 20.78,
+  "name": "karai"
+ },
+ {
+  "kind": "name",
+  "t": 28.72,
+  "film_t": 20.82,
+  "name": "jaire"
+ },
+ {
+  "kind": "name",
+  "t": 28.76,
+  "film_t": 20.86,
+  "name": "vialan"
+ },
+ {
+  "kind": "name",
+  "t": 28.8,
+  "film_t": 20.9,
+  "name": "karia"
+ },
+ {
+  "kind": "name",
+  "t": 28.84,
+  "film_t": 20.94,
+  "name": "yeran"
+ },
+ {
+  "kind": "name",
+  "t": 28.88,
+  "film_t": 20.98,
+  "name": "anna"
+ },
+ {
+  "kind": "name",
+  "t": 28.92,
+  "film_t": 21.02,
+  "name": "areli"
+ },
+ {
+  "kind": "name",
+  "t": 28.96,
+  "film_t": 21.06,
+  "name": "kaina"
+ },
+ {
+  "kind": "name",
+  "t": 29.0,
+  "film_t": 21.1,
+  "name": "konna"
+ },
+ {
+  "kind": "name",
+  "t": 29.04,
+  "film_t": 21.14,
+  "name": "keylen"
+ },
+ {
+  "kind": "name",
+  "t": 29.08,
+  "film_t": 21.18,
+  "name": "liole"
+ },
+ {
+  "kind": "name",
+  "t": 29.12,
+  "film_t": 21.22,
+  "name": "alerin"
+ },
+ {
+  "kind": "name",
+  "t": 29.16,
+  "film_t": 21.26,
+  "name": "earan"
+ },
+ {
+  "kind": "name",
+  "t": 29.2,
+  "film_t": 21.3,
+  "name": "lenne"
+ },
+ {
+  "kind": "name",
+  "t": 29.24,
+  "film_t": 21.34,
+  "name": "kana"
+ },
+ {
+  "kind": "name",
+  "t": 29.28,
+  "film_t": 21.38,
+  "name": "lara"
+ },
+ {
+  "kind": "name",
+  "t": 29.32,
+  "film_t": 21.42,
+  "name": "alela"
+ },
+ {
+  "kind": "name",
+  "t": 29.36,
+  "film_t": 21.46,
+  "name": "anton"
+ },
+ {
+  "kind": "card",
+  "t": 31.5,
+  "film_t": 22.6
+ }
+]

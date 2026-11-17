@@ -20,7 +20,7 @@ xh = np.diff(x, prepend=x[0])  # first difference = high-pass: ticks/strikes sta
 e = np.sqrt(np.convolve(xh ** 2, np.ones(hop * 4) / (hop * 4), mode='full')[:len(x)][::hop])  # causal 4 ms RMS, 1 ms hop
 flux = np.maximum(0, np.diff(e, prepend=e[0]))
 e_raw = np.sqrt(np.convolve(x ** 2, np.ones(hop * 4) / (hop * 4), mode='full')[:len(x)][::hop])  # full-band, for low cues
-cues = json.load(open(os.path.join(F.STUDIO, 'assets', 'cues.json')))
+cues = json.load(open(F.CUES_PATH))
 SLOW = {'head', 'swell', 'card', 'downbeat'}            # soft attacks: check the level rises after the cue instead
 DISCRETE = {'tick', 'rewind', 'downbeat', 'head', 'relu', 'strike', 'name', 'card', 'swell'}
 

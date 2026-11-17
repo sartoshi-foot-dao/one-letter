@@ -17,7 +17,12 @@ from PIL import Image, ImageDraw, ImageFont
 HERE = os.path.dirname(os.path.abspath(__file__))
 STUDIO = os.path.dirname(HERE)
 TRACE = json.load(open(os.path.join(STUDIO, 'assets', 'trace.json')))
-FEAT = json.load(open(os.path.join(STUDIO, 'assets', 'featured.json')))
+# ARM=B renders the viewer study's control film (paper/viewer-study.md): the same step with the same
+# numbers, from a name where the model took its favourite. No die, no not-the-favourite dots, no run count.
+ARM = os.environ.get('ARM', 'A')
+SUF = '' if ARM == 'A' else f'-{ARM}'
+FEAT = json.load(open(os.path.join(STUDIO, 'assets', f'featured{SUF}.json')))
+CUES_PATH = os.path.join(STUDIO, 'assets', f'cues{SUF}.json')
 
 # ------------------------------------------------------------------ style tokens (style-guide.md)
 def hx(h): return tuple(int(h[i:i + 2], 16) for i in (1, 3, 5))
@@ -321,7 +326,7 @@ def render(tr, fmt='16x9', S=2):
     # ---- shot 6: the probabilities, the weighted die, and where it really landed
     if 16.0 <= t < 20.5:
         label(p, t, 16.1, 17.4, '27 probabilities', 'probs')
-        label(p, t, 17.4, 20.5, 'a weighted die', 'probs')
+        label(p, t, 17.4, 20.5, 'a weighted die' if ARM == 'A' else 'the most likely letter', 'probs')
         full = 0.40
         if not L.vertical:
             BAR_BASE = 945; BAR_H = BAR_BASE - 500
@@ -337,7 +342,8 @@ def render(tr, fmt='16x9', S=2):
             if t >= LAND_T:
                 xa, xc = L.cand(ARGMAX)[0], L.cand(CHOSEN)[0]
                 ya = BAR_BASE - BAR_H * PROBS[ARGMAX] / full
-                p.text(xa, ya - 70, 'most likely', 'sans', 44, INK2)
+                p.text(xa, ya - 70, 'most likely', 'sans', 44, INK2 if CHOSEN != ARGMAX else GOLD)
+            if t >= LAND_T and CHOSEN != ARGMAX:
                 yc = BAR_BASE - BAR_H * PROBS[CHOSEN] / full - 50
                 ly = 700
                 p.line([(xc, yc + 30), (xc, ly - 14), (xc - 16, ly - 14)], GOLD, 2)
@@ -360,7 +366,7 @@ def render(tr, fmt='16x9', S=2):
                     tag = 'most likely' if (t >= LAND_T and c == ARGMAX) else 'chosen' if (t >= LAND_T and c == CHOSEN) else ''
                     if tag: p.text(BX + ln + 18 + font('mono', 40).getlength('0.00') + 22, y - 8, tag, 'sans', 40, tcol, 'ls')
         # the die: cumulative strip, segment width = probability; marker stops at the recorded u
-        if t >= 17.4:
+        if t >= 17.4 and ARM == 'A':
             sx0, sx1, sy0, sy1 = L.STRIP
             cw = [0.0] + list(accumulate(PROBS)); tot = cw[-1]
             for c in range(27):
@@ -388,28 +394,28 @@ def render(tr, fmt='16x9', S=2):
                 ch = V[p_['sampled']]
                 wch = font('serif', 64).getlength(ch)
                 p.text(xx, y0, ch, 'serif', 64, col, 'ls')
-                if not is_fav(p_):
+                if ARM == 'A' and not is_fav(p_):
                     p.ring(xx + wch / 2, y0 + 22, 5, fill=INK3)
                 xx += wch
         params = f"{TRACE['meta']['num_params']:,} numbers"
         if not L.vertical:
-            if 21.2 <= t < 22.6:
+            if 21.2 <= t < 22.6 and ARM == 'A':
                 p.ring(250, 898, 8, fill=INK3)
                 p.text(274, 916, f'{OFF} of {TOTAL} letters were not its favourite', 'sans', 56, INK, 'ls')
             elif t >= 22.6:
                 p.text(250, 916, f'{params} · pure Python', 'sans', 56, INK, 'ls')
-                p.ring(1290, 902, 8, fill=INK3)
-                p.text(1314, 914, 'not its favourite', 'sans', 40, INK3, 'ls')
+                if ARM == 'A': p.ring(1290, 902, 8, fill=INK3)
+                if ARM == 'A': p.text(1314, 914, 'not its favourite', 'sans', 40, INK3, 'ls')
         else:
-            if 21.2 <= t < 22.6:
+            if 21.2 <= t < 22.6 and ARM == 'A':
                 p.ring(170, 1542, 8, fill=INK3)
                 p.text(194, 1560, f'{OFF} of {TOTAL} letters', 'sans', 56, INK, 'ls')
                 p.text(170, 1640, 'were not its favourite', 'sans', 56, INK, 'ls')
             elif t >= 22.6:
                 p.text(170, 1560, params, 'sans', 56, INK, 'ls')
                 p.text(170, 1640, 'pure Python', 'sans', 56, INK, 'ls')
-                p.ring(170, 1720, 8, fill=INK3)
-                p.text(194, 1734, 'not its favourite', 'sans', 40, INK3, 'ls')
+                if ARM == 'A': p.ring(170, 1720, 8, fill=INK3)
+                if ARM == 'A': p.text(194, 1734, 'not its favourite', 'sans', 40, INK3, 'ls')
     return p.done()
 
 # ------------------------------------------------------------------ stills + contact sheets
@@ -453,15 +459,15 @@ if __name__ == '__main__':
         fmt, d, fps = sys.argv[2], sys.argv[3], int(sys.argv[4])
         cols = 4 if fmt == '16x9' else 8
         fr = lambda tf: Image.open(os.path.join(d, f'{round(real_t(tf) * fps):05d}.png'))
-        contact([(f'{n} {real_t(t):.1f}s', fr(t)) for n, t in STILLS], cols, os.path.join(R, f'contact-final-{fmt}-beats.png'), fmt)
-        contact([(f't={real_t(t):.2f}s', fr(t)) for t in STRIP], 5, os.path.join(R, f'contact-final-{fmt}-die-strip.png'), fmt,
+        contact([(f'{n} {real_t(t):.1f}s', fr(t)) for n, t in STILLS], cols, os.path.join(R, f'contact-final{SUF}-{fmt}-beats.png'), fmt)
+        contact([(f't={real_t(t):.2f}s', fr(t)) for t in STRIP], 5, os.path.join(R, f'contact-final{SUF}-{fmt}-die-strip.png'), fmt,
                 tw=480 if fmt == '16x9' else 260)
-        fr(POSTER_T).convert('RGB').save(os.path.join(STUDIO, 'out', f'one-letter-{fmt}-poster.jpg'), quality=92)
+        fr(POSTER_T).convert('RGB').save(os.path.join(STUDIO, 'out', f'one-letter{SUF}-{fmt}-poster.jpg'), quality=92)
     elif cmd == 'stills':   # stills FMT: quick local check (Mac fonts)
         fmt = sys.argv[2] if len(sys.argv) > 2 else '16x9'
-        out = os.path.join(R, f'stills-{fmt}'); os.makedirs(out, exist_ok=True)
+        out = os.path.join(R, f'stills{SUF}-{fmt}'); os.makedirs(out, exist_ok=True)
         frames = []
         for name, t in STILLS:
             tr = real_t(t); im = render(tr, fmt); im.save(os.path.join(out, f'{name}-t{tr:05.2f}.png')); frames.append((f'{name} {tr:.1f}s', im))
-        contact(frames, 4 if fmt == '16x9' else 8, os.path.join(R, f'contact-{fmt}-beats.png'), fmt)
+        contact(frames, 4 if fmt == '16x9' else 8, os.path.join(R, f'contact{SUF}-{fmt}-beats.png'), fmt)
         print('wrote', out)

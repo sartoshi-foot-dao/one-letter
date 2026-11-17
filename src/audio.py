@@ -82,7 +82,7 @@ for j, c in enumerate(cw[:-1]):
     if frac >= u: break
     r = 1 - (1 - frac / u) ** (1 / 3)                  # ease_out(r) = frac/u
     t = F.ROLL_T0 + (F.ROLL_T1 - F.ROLL_T0) * r
-    env_tone(t, [2200, 3300], [0.14, 0.05], 0.012); cue('wheel', t, after=F.V[j])
+    if F.ARM == 'A': env_tone(t, [2200, 3300], [0.14, 0.05], 0.012); cue('wheel', t, after=F.V[j])
 # ---- the strike: the die lands on m
 base = 523.25
 env_tone(F.LAND_T, [base, base * 2.76, base * 5.4, base * 8.93], [0.42, 0.16, 0.07, 0.03], 1.1, dur=3.6)
@@ -91,7 +91,7 @@ cue('strike', F.LAND_T, letter=F.V[F.CHOSEN], p=round(F.PROBS[F.CHOSEN], 4))
 for si in range(len(F.TRACE['samples'])):
     t = 20.7 + 0.04 * si
     env_tone(t, [1568 + 20 * si], [0.06 if si else 0.14], 0.03); cue('name', t, name=F.TRACE['samples'][si]['name'])
-for t in [21.2, 22.6]:
+for t in ([21.2, 22.6] if F.ARM == 'A' else [22.6]):   # arm B has no run-count card
     env_tone(t, [261.63, 392, 523.25], [0.10, 0.07, 0.05], 0.9, attack=0.02, dur=2.5); cue('card', t)
 
 # ---- master: fade the last 0.4 s, peak to -1 dBFS
@@ -105,5 +105,5 @@ if __name__ == '__main__':
         w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR)
         w.writeframes(np.repeat(pcm[:, None], 2, axis=1).tobytes())
     CUES.sort(key=lambda c: c['t'])
-    json.dump(CUES, open(os.path.join(F.STUDIO, 'assets', 'cues.json'), 'w'), indent=1)
+    json.dump(CUES, open(F.CUES_PATH, 'w'), indent=1)
     print(f'wrote {out}: {len(CUES)} cues, {F.DUR:.2f} s')

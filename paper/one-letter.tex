@@ -1,0 +1,237 @@
+\documentclass[10pt,twocolumn]{article}
+\usepackage[margin=0.75in,columnsep=0.28in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{newtxtext,newtxmath}
+\usepackage{graphicx,booktabs,amsmath,xcolor,microtype}
+\usepackage[hidelinks]{hyperref}
+\usepackage[font=small,labelfont=bf]{caption}
+\usepackage{enumitem}
+\setlist{nosep,leftmargin=1.2em}
+\definecolor{gold}{HTML}{B8862E}
+\newcommand{\tok}[1]{\texttt{#1}}
+
+\title{\Large\bfseries One Letter: Trace-Grounded Explanatory Film\\of a Single Sampling Step in a 4{,}192-Parameter GPT}
+\author{Ziding Zhang\\\small\url{https://zidingz.com/one-letter/}}
+\date{\small Working draft, 14 November 2026. Not peer reviewed; not submitted.}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Explanatory animations of neural networks usually show illustrative numbers chosen by the animator.
+We describe a 34-second film that shows one real next-token prediction inside
+\emph{microgpt}, a 4{,}192-parameter character-level GPT written in pure Python,
+in which every number on screen is read from a recorded execution trace.
+Three constraints make the film checkable rather than merely plausible.
+(1)~The trace is recorded by an instrumented copy of the model and is accepted only if the run reproduces the
+unmodified program's 20 sampled names exactly.
+(2)~The depicted step is chosen by a rule fixed before the trace existed, not by taste;
+the rule selected the step \tok{ka}\,$\to$\,\tok{m}, where the model sampled a letter of probability 0.027
+over a favourite of 0.373.
+(3)~Picture and sound are pure functions of one timeline, so their synchrony is verified by measurement:
+across 53 audio cues the worst onset error is 3\,ms and every picture event lands within one frame.
+We report the pipeline, the numbers it surfaced (in this run, 67 of 118 sampled letters were not the model's top choice),
+and its main limitation: we have not yet measured whether viewers learn anything from it, and we describe a study designed to do so.
+\end{abstract}
+
+\section{Introduction}
+A language model does not output a word; it outputs a probability distribution and then draws from it.
+This last step is easy to state and easy to leave out of explanations, which tend to stop at the
+``most likely next token.''
+Showing it honestly requires a model small enough that \emph{every} intermediate value fits on a screen,
+and a production method that prevents the explainer from quietly substituting nicer numbers.
+
+Karpathy's microgpt~\cite{karpathy2026microgpt} provides the first: a complete GPT (tokeniser, scalar autograd,
+one transformer layer~\cite{vaswani2017attention}, Adam, sampling) in about 200 lines of dependency-free Python, trained on
+${\sim}$32k first names~\cite{makemore}. This paper is about the second.
+We contribute:
+\begin{itemize}
+\item a \textbf{trace contract} with an exact-reproduction acceptance test (\S\ref{sec:trace});
+\item a \textbf{pre-committed selection rule} for the depicted example, with a documented revision (\S\ref{sec:select});
+\item a \textbf{seekable, deterministic renderer} in which sound and picture share one clock, including a
+time-warp for reading pauses that preserves sync by construction (\S\ref{sec:render});
+\item \textbf{machine checks} for numerical provenance and audiovisual sync (\S\ref{sec:verify}).
+\end{itemize}
+
+\begin{figure*}[t]
+\centering
+\newcommand{\fr}[2]{\begin{minipage}[t]{0.245\textwidth}\centering\includegraphics[width=\linewidth]{figs/s16-#1.jpg}\\[-1pt]{\scriptsize #2}\end{minipage}}
+\fr{a}{(a) the sampled name}\hfill\fr{b}{(b) rewind: 27 options}\hfill\fr{c}{(c) 16 numbers per letter}\hfill\fr{d}{(d) four attention heads}\\[4pt]
+\fr{e}{(e) MLP: 7 of 64 active}\hfill\fr{f}{(f) 27 probabilities}\hfill\fr{g}{(g) the die lands on \tok{m}}\hfill\fr{h}{(h) all 20 names; dots mark non-favourites}
+\caption{Frames from the 16:9 cut, extracted from the delivered video. Every value shown is read from the recorded trace.}
+\label{fig:frames}
+\end{figure*}
+
+\section{Related work}
+Interactive articles such as Distill's treatment of attention~\cite{olah2016attention} and
+tools such as Transformer Explainer~\cite{cho2024transformer} and Bycroft's 3D LLM
+visualisation~\cite{bycroft2023llmviz} let readers inspect a running model; they favour exploration over a fixed narrative.
+Programmatic animation in the style of Manim~\cite{manim} produces narrative explanations whose
+values are usually typed by the author. Segel and Heer~\cite{segel2010narrative} describe the
+author-driven end of narrative visualisation, which a short film occupies.
+Our work sits between these: a fixed, author-driven film, but one whose numbers are bound to a recorded run
+in the way an interactive tool's are. Holtzman et al.~\cite{holtzman2020degeneration} motivate why sampling,
+rather than argmax decoding, is the behaviour worth showing.
+
+\section{System}
+\subsection{Model and run}
+Table~\ref{tab:model} lists the only model facts the film may state.
+The run uses the program's own seed and its default inference: 20 samples at temperature $\tau=0.5$,
+each ending when the model emits the boundary token \textsc{bos}.
+
+\begin{table}[t]
+\centering\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+Training data & ${\sim}$32k names (makemore \tok{names.txt}) \\
+Vocabulary & 27 tokens: 26 letters + \textsc{bos} \\
+Parameters & 4{,}192 \\
+Shape & 1 layer, 4 heads, $d=16$, MLP $16{\to}64{\to}16$ \\
+Nonlinearity & ReLU \\
+Training & 1{,}000 Adam steps, seed 42, final loss 2.6497 \\
+Sampling & $\tau = 0.5$, 20 samples \\
+\bottomrule
+\end{tabular}
+\caption{Model facts. Any other number on screen must come from the trace.}
+\label{tab:model}
+\end{table}
+
+\subsection{Trace contract}\label{sec:trace}
+An instrumented copy of the program records, for every sampled position, the token, its token and position
+embeddings, the residual stream before and after the block, per-head attention weights,
+the 64 MLP activations before and after ReLU, logits, temperature-scaled probabilities, and the sampled token.
+Instrumentation is applied as seven text patches at exact anchors; each anchor must match exactly once,
+so a change to the source makes the recorder fail rather than drift.
+The patches only \emph{read} values; the patched program is otherwise executed unchanged.
+
+\paragraph{Recording the die.}
+Python's \tok{random.choices} draws one uniform $u\in[0,1)$, scales it by the total weight $Z$, and
+bisects the cumulative weights $C_j=\sum_{i\le j} w_i$, returning the first $j$ with $C_j > uZ$.
+To show where the die actually landed we restate this call with identical arithmetic and record $u$.
+Because it consumes the generator identically, the run's outputs are unchanged.
+
+\paragraph{Acceptance.} The trace is accepted only if its 20 names equal those printed by the unmodified program.
+They do (20/20), the final training loss matches to four decimals, and the source's SHA-256 is stored in the trace.
+A rejected trace is re-recorded, never edited.
+
+\subsection{Selecting the depicted step}\label{sec:select}
+To prevent cherry-picking, the brief fixed the selection rule before any trace existed:
+\emph{the first sample of length $\ge 4$ containing a position whose sampled token is not the argmax.}
+Applied to the trace, this rule (v1) selected position 0 of \tok{kamon}, where the prefix is empty;
+all four heads then attend with weight 1.0 to the single position, which makes the attention beat meaningless.
+We treated this as a defect in the rule, added the condition \emph{position $\ge 2$} (v2), and recorded the change
+before rendering. Rule v2 selects position~2 of the same name: prefix \tok{ka}, sampled \tok{m} with $p=0.0271$,
+favourite \tok{r} with $p=0.3727$ (Table~\ref{tab:step}). The recorded draw gives $uZ=0.2264$, inside
+\tok{m}'s cumulative segment $[0.2098, 0.2369)$.
+
+\begin{table}[t]
+\centering\small
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Head & \textsc{bos} & \tok{k} & \tok{a} \\
+\midrule
+1 & 0.36 & 0.32 & 0.32 \\
+2 & 0.25 & 0.52 & 0.24 \\
+3 & 0.01 & \textbf{0.98} & 0.01 \\
+4 & 0.38 & 0.61 & 0.01 \\
+\bottomrule
+\end{tabular}
+
+\smallskip\raggedright
+Top 5: \tok{r}~.37, \tok{n}~.27, \tok{l}~.07, \tok{y}~.06, \tok{i}~.04.\\
+Sampled: \textcolor{gold}{\tok{m}~.03}. Entropy 1.99 nats. MLP: 7 of 64 units active.
+\caption{The selected step, \tok{ka}$\,\to\,$?, read from the trace.}
+\label{tab:step}
+\end{table}
+
+\subsection{Renderer}\label{sec:render}
+Each frame is a pure function $\mathrm{frame} = \mathrm{render}(r, \mathit{fmt})$ of real time $r$ and output format,
+drawn with Pillow at $2\times$ supersampling. There is no hidden state: springs and eases are closed-form,
+and there is no randomness, so any frame can be rendered alone, out of order, in parallel.
+The 16:9 and 9:16 cuts are separate layouts on the same timeline, not crops.
+
+\paragraph{Reading holds.} After a first viewing the film read as too fast. Rather than retiming each shot,
+we inserted holds $(h_k, d_k)$ at twelve points where the picture is at rest. Shots are authored in
+\emph{film time} $t$; real time is
+\begin{equation}
+r(t) = t + \textstyle\sum_k d_k\,\mathbb{1}[h_k < t],
+\end{equation}
+and the renderer evaluates the scene at $f(r)$, the inverse of $r$, which is constant during a hold.
+Every audio cue is authored in film time and placed at $r(t)$, so the 9.7\,s of holds (24.0\,s $\to$ 33.7\,s)
+cannot break synchrony. We checked that every hold starts on a frame with zero mean pixel change.
+
+\paragraph{Sound from the same clock.} All sound is synthesised (sums of decaying sines): a tick per letter,
+section downbeats, one tone per attention head scaled by that head's largest weight, a low drone whose
+level tracks the entropy of the step being decided, and a struck note when the die lands.
+The die marker moves as $x(s) = uZ\cdot E(s)$ with ease-out $E(s)=1-(1-s)^3$ over $s\in[0,1]$.
+It clicks as it crosses each boundary $C_j < uZ$; the click times are computed by inverting the ease,
+\begin{equation}
+s_j = 1 - \left(1 - C_j/(uZ)\right)^{1/3},
+\end{equation}
+so the twelve clicks before \tok{m} are exact, not placed by ear.
+
+
+\section{Verification}\label{sec:verify}
+\paragraph{Provenance.} The renderer reads values only from the trace and a derived summary of the selected step;
+no number is typed into the scene code.
+\paragraph{Synchrony.} A script compares the audio and the rendered frames against the 53 cues
+without listening. Audio onsets are found as peaks of positive energy flux on a high-passed signal at 1\,ms hops;
+slow-attack cues are checked as a level rise instead. For each discrete event it checks that the first frame
+at or after the cue differs from the previous frame. It also cross-correlates the muxed file's audio with the source WAV.
+\paragraph{Results.} Isolated onsets fall within 3\,ms of their cue (tolerance 10\,ms); every picture event
+changes the frame within one frame (${\le}33$\,ms at 30\,fps); the muxed audio offset is 0.0\,ms in both cuts;
+0 of 53 checks fail. The check also caught a real defect: a swell under the growing bars was masked by a
+downbeat's tail ($-2.6$\,dB) and was cut.
+
+\section{What the trace showed}
+The film's closing claim was not planned. Counting across the whole run, 67 of the 118 sampled letters were
+not the model's most likely letter. At $\tau = 0.5$ this model leaves the favourite more often than it takes it,
+so the featured step is typical rather than a rare accident. We state this only for this run;
+other seeds would give other counts.
+
+\section{Planned evaluation}
+We have designed, but not yet run, a between-subjects study ($3$ arms, about $110$ participants each) with a pre-test,
+an immediate post-test and an optional one-week follow-up.
+\textbf{A} is the film as published. \textbf{B} is a favourite-only film, already rendered: the same step \tok{ka}$\,\to\,$? with identical numbers,
+taken from \tok{karai}, another name in the same run that reached the same prefix and wrote the favourite \tok{r} ($p=0.37$).
+It has the same length, timeline and sound, but no die, no not-the-favourite marks and no closing count,
+so it keeps the no-invented-numbers rule while removing only the sampling story.
+\textbf{C} is a 120-word text with the same content as A.
+The primary outcome is a 9-item sampling-understanding score (e.g.\ \emph{``out of 100 runs, how often would it write a 3\% letter?''},
+plus transfer items on temperature and chatbot variability). H1: A\,$>$\,B; H2: A\,$>$\,C (ANCOVA on post-test with pre-test as covariate,
+Holm-corrected; $n=100$ per arm gives power $0.80$ for $d=0.4$). H3, exploratory: the A$-$B gap is larger for viewers with little ML experience.
+Exclusions, items and analysis will be preregistered before data collection.
+
+\section{Limitations}
+\begin{itemize}
+\item \textbf{No audience evaluation yet.} Until the study above runs, we cannot claim the film teaches anything.
+\item \textbf{One run, one step.} All numbers come from one seed; the film generalises only through the run-wide count.
+\item \textbf{Simplified display.} Embedding and activation values are shown as colour on a shared clamp
+(98th percentile, square-root curve), so small values are visibly compressed.
+\item \textbf{Process.} The pipeline was built by an AI coding agent under staged human approval;
+the gates are documented, but taste judgements (sound, typeface) were made by one person.
+\end{itemize}
+
+\section{Conclusion}
+A tiny model makes it possible to show a language model's choice with no invented numbers.
+The cost of that honesty is mostly engineering discipline: an acceptance test for the trace, a selection rule
+written before the data, and one clock for picture and sound. The resulting checks are cheap enough to rerun on every render.
+
+\paragraph{Availability.}\raggedright Film: \url{https://zidingz.com/one-letter/}. Source and study films: \url{https://github.com/sartoshi-foot-dao/one-letter}.
+Model by Andrej Karpathy~\cite{karpathy2026microgpt}; data from makemore (MIT)~\cite{makemore}.
+
+\paragraph{Acknowledgements.} The renderer, trace recorder and verification scripts were written with Claude (Anthropic).
+
+{\footnotesize
+\begin{thebibliography}{9}\setlength{\itemsep}{1pt}
+\bibitem{karpathy2026microgpt} A.~Karpathy. microgpt. Blog post and code, Feb.\ 2026. \url{https://karpathy.github.io/2026/02/12/microgpt/}
+\bibitem{makemore} A.~Karpathy. makemore. GitHub repository, MIT licence. \url{https://github.com/karpathy/makemore}
+\bibitem{olah2016attention} C.~Olah and S.~Carter. Attention and augmented recurrent neural networks. \emph{Distill}, 2016.
+\bibitem{cho2024transformer} A.~Cho et al. Transformer Explainer: Interactive learning of text-generative models. arXiv:2408.04619, 2024.
+\bibitem{bycroft2023llmviz} B.~Bycroft. LLM Visualization. \url{https://bbycroft.net/llm}, 2023.
+\bibitem{manim} G.~Sanderson and the Manim Community. Manim: a mathematical animation engine. Software.
+\bibitem{segel2010narrative} E.~Segel and J.~Heer. Narrative visualization: Telling stories with data. \emph{IEEE TVCG} 16(6), 2010.
+\bibitem{holtzman2020degeneration} A.~Holtzman, J.~Buys, L.~Du, M.~Forbes, Y.~Choi. The curious case of neural text degeneration. \emph{ICLR}, 2020.
+\bibitem{vaswani2017attention} A.~Vaswani et al. Attention is all you need. \emph{NeurIPS}, 2017.
+\end{thebibliography}}
+\end{document}

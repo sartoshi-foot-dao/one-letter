@@ -54,3 +54,26 @@ feat['attn'] = p['attn']
 feat['top5'] = sorted(((vocab[i], q) for i, q in enumerate(p['probs'])), key=lambda r: -r[1])[:5]
 json.dump(feat, open(os.path.join(A, 'featured.json'), 'w'), indent=2)
 print(json.dumps(feat, indent=2))
+
+# 3. Control step for the viewer study's arm B (paper/viewer-study.md), stated before looking:
+#    the first other sample of length >= 4 that reaches the SAME prefix at the same position and
+#    wrote the argmax there. Same prefix => identical inputs, attention, MLP and probabilities
+#    (the model is deterministic given the prefix); only the outcome differs. No match: no arm B.
+ctrl = None
+for si, s in enumerate(trace['samples']):
+    if si == feat['sample'] or len(s['name']) < 4 or not s['name'].startswith(feat['prefix']) or len(s['positions']) <= feat['pos']:
+        continue
+    q = s['positions'][feat['pos']]
+    am = max(range(len(q['probs'])), key=q['probs'].__getitem__)
+    if q['sampled'] == am:
+        ctrl = dict(feat, rule='arm B: first other sample with the same prefix whose step took the argmax', sample=si,
+                    name=s['name'], sampled=vocab[am], p_sampled=q['probs'][am])
+        same = all(q[k] == p[k] for k in ('x_in', 'attn', 'resid_attn', 'mlp_post', 'x_out', 'probs'))
+        if not same:
+            sys.exit('arm B: same prefix but different values; rule assumption broken')
+        break
+if ctrl:
+    json.dump(ctrl, open(os.path.join(A, 'featured-B.json'), 'w'), indent=2)
+    print('arm B:', ctrl['name'], 'pos', ctrl['pos'], '->', ctrl['sampled'], round(ctrl['p_sampled'], 4))
+else:
+    print('arm B: no same-prefix argmax step in this run')

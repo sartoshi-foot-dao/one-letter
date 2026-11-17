@@ -18,7 +18,16 @@ The film follows the model as it writes the made-up name `kamon`. After `ka` its
 | `assets/` | the recorded trace, the featured step, the sound cues |
 | `brief.md`, `style-guide.md`, `shotlist.md` | the written brief, look and shot plan |
 | `reviews/` | contact sheets, stills, sync reports and notes from each review gate |
-| `out/` | the finished films and posters |
+| `out/` | the finished films and posters (`one-letter-B-*` is the viewer-study control film, see below) |
+| `paper/` | a 3-page LaTeX working draft about the method, and the design of a viewer study |
+
+## Arm B: a control film for a viewer study
+
+`paper/viewer-study.md` designs a study of whether the film teaches that a language model samples rather than always taking its favourite. Its control film, arm B, is rendered here as `out/one-letter-B-{16x9,9x16}.mp4`.
+
+Arm B shows the same step, `ka` → ?, with identical numbers. It comes from `karai`, another name in the same run that reached the same prefix and wrote the favourite `r` (37%). The model is deterministic given its prefix, so every embedding, attention weight, MLP value and probability matches the main film; `src/check_trace.py` picks the step by a fixed rule and checks this. Arm B has no die, no not-the-favourite marks and no "67 of 118" card, and is otherwise the same length, timeline and sound. Render it with `ARM=B sh render.sh 30 8`.
+
+The study has not been run. The paper is a working draft, not peer reviewed or submitted.
 
 ## Not included: microgpt and its data
 
@@ -53,5 +62,5 @@ docker run --rm -v "$PWD":/work -v /usr/share/fonts/truetype/dejavu:/usr/share/f
 ## Licence
 
 - Code (`src/`, `scripts/`, `render.sh`, `Dockerfile`): [MIT](LICENSE).
-- Film, posters, stills, contact sheets, recorded data and documents (`out/`, `reviews/`, `assets/`, the `.md` files): [CC BY 4.0](LICENSE-CC-BY-4.0.txt). Credit "One Letter, by Ziding Zhang with Claude", with a link to https://zidingz.com/one-letter/.
+- Film, posters, stills, contact sheets, recorded data and documents (`out/`, `reviews/`, `assets/`, `paper/`, the `.md` files): [CC BY 4.0](LICENSE-CC-BY-4.0.txt). Credit "One Letter, by Ziding Zhang with Claude", with a link to https://zidingz.com/one-letter/.
 - microgpt and makemore `names.txt` are not covered by these licences and are not in this repository.
